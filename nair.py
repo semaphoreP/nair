@@ -19,9 +19,13 @@ def nMathar(wv, P, T, H=10):
 	wvnum = 1.e4/wv #cm^-1 	#convert to wavenumbers
 	wvnum0 = 1.e4/2.25 #cm^-1 #series expand around this wavenumber
 
+	#do a 6th order expansion
 	powers = np.arange(0,6)
+	#calculate expansion coefficients
 	coeffs = GetCoeff(powers, P, T, H)
-	n = np.ones(np.size(wv))
+
+	#sum of the power series expansion
+	n = 1.0
 	for coeff,power in zip(coeffs, powers):
 		n += coeff * ((wvnum - wvnum0)**power)
 
@@ -47,11 +51,13 @@ def GetCoeff(i, P, T, H):
 	P0 = 75000 #Pa
 	H0 = 10 #%
 
+	#delta terms for the expansion
 	dT = 1./T - 1./T0
 	dP = P - P0
 	dH = H - H0
 
 	#loads and loads of coefficients, see equation 7 in Mathar (2008)
+	#use the power (i.e. i=[0..6]) to index the proper coefficient for that order
 	cref= np.array([ 0.200192e-3, 0.113474e-9, -0.424595e-14, 0.100957e-16,-0.293315e-20, 0.307228e-24]) # cm^i
 	cT  = np.array([ 0.588625e-1,-0.385766e-7,  0.888019e-10,-0.567650e-13, 0.166615e-16,-0.174845e-20])  # K cm^i
 	cTT = np.array([-3.01513,     0.406167e-3, -0.514544e-6,  0.343161e-9, -0.101189e-12, 0.106749e-16]) # K^2 cm^i
@@ -63,8 +69,7 @@ def GetCoeff(i, P, T, H):
 	cTP = np.array([ 0.779176e-6, 0.396499e-12, 0.395114e-16, 0.233587e-20,-0.636441e-24, 0.716868e-28]) # cm^i K / Pa
 	cHP = np.array([-0.206567e-15,0.106141e-20,-0.149982e-23, 0.984046e-27,-0.288266e-30, 0.299105e-34]) # cm^i / Pa %
 
-	# use numpy arrays to acculate all the coefficients at the same time
-	# thankfully python is 0 indexed
+	# use numpy arrays to calculate all the coefficients at the same time
 	coeff = cref[i] + cT[i]*dT + cTT[i]*(dT**2) + cH[i]*dH + cHH[i]*(dH**2) + cP[i]*dP + cPP[i]*(dP**2) + cTH[i]*dT*dH + cTP[i]*dT*dP + cHP[i]*dH*dP
 
 	return coeff
