@@ -113,3 +113,99 @@ def nRoe(wv,P,T,fh20=0.0):
 	nh2o = K2*(1 + a6*wv**(-2))
 
 	return n1 + nh2o + 1
+
+	
+def nVZ(wv, P, T, H=10):
+    """
+    Computes the index of refraction of air based on Voronin & Zheltikov (2017)
+    Paper can be found: https://www.nature.com/articles/srep46111
+
+    Args:
+        wv (float/np.ndarray): wavelengths to compute in microns
+        P (float): pressure in Pascal
+        T (float): temperature in Kelvin
+        H (float): relative humidity in % (0-100)
+
+    Return: 
+        n (float/np.ndarray): index of refraction
+    """
+    # Table 1 from the paper
+    coeff_sets = [[4.051e-6, 1.010e-6, 15131, 14218],
+              [2.897e-5, 2.728e-5, 4290.9, 4223.1],
+              [8.573e-7, 6.620e-7, 2684.9, 2769.1],
+              [1.550e-8, 5.532e-9, 2011.3, 1964.6],
+              [2.945e-5, 6.583e-8, 47862, 16603],
+              [3.273e-6, 3.094e-6, 6719, 5729.9],
+              [1.862e-6, 2.788e-6, 2775.6, 2598.5],
+              [2.544e-7, 2.181e-7, 1835.6, 1904.8],
+              [1.126e-7, 2.336e-7, 1417.6, 1364.7],
+              [6.856e-9, 9.479e-9, 1145.3, 1123.2],
+              [1.985e-9, 2.882e-9, 947.73, 935.09],
+              [1.2029482, 5.796725, 85, 24.546],
+              [0.26507582, 7.734925, 127, 29.469],
+              [0.93132145, 7.217322, 87, 22.645],
+              [0.25787285, 4.742131, 128, 34.924]]
+
+    N_CO2 = 9.4136e15 # cm^-3
+    # calculate N_H20
+    ps = saturation_pressure(T)
+    N_H20 = (H/100.) * ps / (1.38064852e-23 * T) # m^-3
+    N_H20 *= 1e-6 # cm^-3 
+    N_N2 = 19870e15 # cm^-3
+    N_O2 = 5329.1e15 # cm^-3
+    N_Ar = 237.63e15 # cm^-3
+
+    # calculate critical plasma density
+    m_e = 9.10938356e-31 # kg
+    eps_0 = 8.854187817e-12 # F/m
+    e_charge = 1.6021766208e-19 # C
+    c = 299792458 # m/s
+    ang_freq = 2*np.pi*(c * 1e6)/wv # s^-1
+    N_cr = m_e * eps_0 /e_charge**2 * ang_freq**2 # m^-3
+    N_cr *= 1e-6 # cm^-3
+
+    # correspond specifies density to band
+    Ns = [N_CO2, N_CO2, N_CO2, N_CO2, N_H20, N_H20, N_H20, N_H20, N_H20, N_H20, N_H20, N_N2, N_O2, N_Ar, N_H20]
+
+    wv_nm = wv * 1e3
+
+    n = 1
+    for coeffs, N in zip(coeff_sets, Ns):
+        A1r, A2r, lam1r, lam2r = coeffs
+        arg1 = A1r * lam1r**2 / (wv_nm**2 - lam1r**2) # ps^2
+        arg2 = A2r * lam2r**2 / (wv_nm**2 - lam2r**2) # ps^2
+
+        arg = N/N_cr * (arg1 + arg2)
+
+        n += arg
+
+    return n
+
+def saturation_pressure(temp):
+    """
+    Computes the saturation vapor pressure of water (from Voronin & Zheltikov 2017, eq 7)
+
+    Args:
+        temp (float): temperature in Kelvin
+    
+    Return:
+        ps: saturation pressure in Pa
+    """
+    Tc = 647.096 # Kelvin, critical point temperature of water
+    pc = 22.064e6 # Pa
+
+    tau = Tc/temp
+    theta = 1 - temp/Tc
+
+    a1 = -7.85951783
+    a2 = 1.84408259
+    a3 = -11.7866497
+    a4 = 22.6807411
+    a5 = -15.9618719
+    a6 = 1.80122502
+
+    arg = a1*theta + a2*theta**1.5 + a3*theta**3 + a4*theta**3.5 + a5*theta**4 + a6*theta**7.5
+
+    ps = pc * np.exp(tau * arg)
+
+    return ps
