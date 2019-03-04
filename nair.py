@@ -113,44 +113,46 @@ def get_coeff_mathar(i, P, T, H, wvrange=1):
     return coeff
 
 
-def nRoe(wv,P,T,fh20=0.0):
-	"""
-	Compute n for air from the formula in Henry Roe's PASP paper: http://arxiv.org/pdf/astro-ph/0201273v1.pdf
-	which in turn is referenced from Allen's Astrophysical Quantities.
+def nRoe(wv, P, T, H=10):
+    """
+    Compute n for air from the formula in Henry Roe's PASP paper: http://arxiv.org/pdf/astro-ph/0201273v1.pdf
+    which in turn is referenced from Allen's Astrophysical Quantities.
 
-	Inputs:
-		wv: wavelength in microns
-		P:  pressure in Pascal
-		T:  temperature in Kelvin
-		fh20:fractional partial pressure of water (typically between 0 and 4%)
-	Return:
-		n:  index of refraction of air
-	"""
+    Inputs:
+        wv: wavelength in microns
+        P:  pressure in Pascal
+        T:  temperature in Kelvin
+        H:  relative humidity in % (0-100)
+    Return:
+        n:  index of refraction of air
+    """
 
-	#convert pressure from Pa to mbar
-	P /= 100.
+    #convert pressure from Pa to mbar
+    P /= 100.
 
-	#some constants in the function for n
-	a1 = 64.328
-	a2 = 29498.1
-	a3 = 146.0
-	a4 = 255.4
-	a5 = 41.0
+    #some constants in the function for n
+    a1 = 64.328
+    a2 = 29498.1
+    a3 = 146.0
+    a4 = 255.4
+    a5 = 41.0
 
-	Ts = 288.15   # K
-	Ps = 1013.35 # mb
+    Ts = 288.15   # K
+    Ps = 1013.35 # mb
 
-	#calculate n-1 for dry air
-	K1 = 1e-6*(P/Ps * Ts/T)
-	n1 = K1*(a1 + a2/(a3-wv**(-2)) + a4/(a5-wv**(-2))      )
+    #calculate n-1 for dry air
+    K1 = 1e-6*(P/Ps * Ts/T)
+    n1 = K1*(a1 + a2/(a3-wv**(-2)) + a4/(a5-wv**(-2))      )
 
-	# water vapor correction
-	# fraction parital pressure of water vapor is 0-4%
-	K2 = -43.49e-6 * fh20
-	a6 = -7.956e-3
-	nh2o = K2*(1 + a6*wv**(-2))
+    # water vapor correction
+    # first compute partial pressure of water
+    p_h20 = H/100. * saturation_pressure(T) # Pa
+    fh20 = p_h20 / (1013.25 * 100)
+    K2 = -43.49e-6 * fh20
+    a6 = -7.956e-3
+    nh2o = K2*(1 + a6*wv**(-2))
 
-	return n1 + nh2o + 1
+    return n1 + nh2o + 1
 
 	
 def nVZ(wv, P, T, H=10):
